@@ -90,6 +90,38 @@ export abstract class GitManager {
 
     abstract clone(url: string, dir: string, depth?: number): Promise<void>;
 
+    /**
+     * Checks staged file names against sensitive-file patterns.
+     * Returns true if the commit should proceed, false if blocked.
+     * A blocked commit shows a Notice and returns false.
+     */
+    async preCommitCheck(stagedFiles: string[]): Promise<boolean> {
+        if (!this.plugin.settings.enableSensitiveFileCheck) return true;
+        const { Notice } = await import("obsidian");
+        const patterns = [
+            /\.env(\.|$)/i,
+            /\.pem$/i,
+            /\.key$/i,
+            /id_rsa/i,
+            /id_ed25519/i,
+            /credentials/i,
+            /secrets?\.(json|yaml|yml|toml)$/i,
+        ];
+        for (const file of stagedFiles) {
+            const basename = file.split("/").pop() ?? file;
+            for (const pattern of patterns) {
+                if (pattern.test(basename)) {
+                    new Notice(
+                        `Commit blocked: '${basename}' matches a sensitive file pattern. Add it to .gitignore or commit manually after review.`,
+                        10000
+                    );
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     abstract setConfig(
         path: string,
         value: string | number | boolean | undefined

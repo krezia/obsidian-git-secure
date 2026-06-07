@@ -761,6 +761,20 @@ export class ObsidianGitSettingsTab extends PluginSettingTab {
                     })
             );
 
+        new Setting(containerEl)
+            .setName("Block commits with sensitive file names")
+            .setDesc(
+                "When enabled, commits are blocked if any staged file matches a sensitive pattern (.env, .pem, id_rsa, credentials, secrets.*, etc.). Disable only if the check produces false positives for your workflow."
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(plugin.settings.enableSensitiveFileCheck)
+                    .onChange(async (value) => {
+                        plugin.settings.enableSensitiveFileCheck = value;
+                        await plugin.saveSettings();
+                    })
+            );
+
         if (plugin.gitManager instanceof IsomorphicGit) {
             new Setting(containerEl)
                 .setName("Authentication/commit author")

@@ -933,6 +933,14 @@ export default class ObsidianGit extends Plugin {
                 return false;
             }
 
+            const filesToScan = onlyStaged
+                ? stagedFiles.map((f) => f.path)
+                : [...stagedFiles, ...unstagedFiles].map((f) => f.path);
+            if (!(await this.gitManager.preCommitCheck(filesToScan))) {
+                this.setPluginState({ gitAction: CurrentGitAction.idle });
+                return false;
+            }
+
             if (
                 unstagedFiles.length + stagedFiles.length !== 0 ||
                 hadConflict
