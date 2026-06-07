@@ -128,7 +128,7 @@ export class SimpleGit extends GitManager {
                 vaultBasePath,
                 this.app.vault.configDir,
                 "plugins",
-                "obsidian-git"
+                this.plugin.manifest.id
             );
             const askPassPath = path.join(
                 absolutePluginConfigPath,
@@ -238,17 +238,21 @@ export class SimpleGit extends GitManager {
             vaultPath,
             this.app.vault.configDir,
             "plugins",
-            "obsidian-git"
+            this.plugin.manifest.id
         );
     }
 
     private get relPluginConfigPath(): string {
-        return path.join(this.app.vault.configDir, "plugins", "obsidian-git");
+        return path.join(
+            this.app.vault.configDir,
+            "plugins",
+            this.plugin.manifest.id
+        );
     }
     async askpass(): Promise<void> {
         const adapter = this.app.vault.adapter as FileSystemAdapter;
         const relPluginConfigDir =
-            this.app.vault.configDir + "/plugins/obsidian-git/";
+            this.app.vault.configDir + "/plugins/" + this.plugin.manifest.id + "/";
 
         await this.addAskPassScriptToExclude();
 
@@ -350,7 +354,7 @@ export class SimpleGit extends GitManager {
             const vaultRelativeAskPassScriptFile = path.join(
                 this.app.vault.configDir,
                 "plugins",
-                "obsidian-git",
+                this.plugin.manifest.id,
                 ASK_PASS_SCRIPT_FILE
             );
             const repoRelativeAskPassScriptFile = this.getRelativeRepoPath(

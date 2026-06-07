@@ -1,8 +1,8 @@
 {
     "author": "Vinzent",
     "authorUrl": "https://github.com/Vinzent03",
-    "id": "obsidian-git",
-    "name": "Git",
+    "id": "obsidian-git-secured",
+    "name": "Git (Secured)",
     "description": "Integrate Git version control with automatic backup and other advanced features.",
     "isDesktopOnly": false,
     "fundingUrl": "https://ko-fi.com/vinzent",
