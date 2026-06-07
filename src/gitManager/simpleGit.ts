@@ -1074,13 +1074,18 @@ export class SimpleGit extends GitManager {
     }
 
     async clone(url: string, dir: string, depth?: number): Promise<void> {
+        const extraFlags: string[] = [
+            "--config",
+            "core.hooksPath=/dev/null",
+            ...(depth ? ["--depth", `${depth}`] : []),
+        ];
         await this.git.clone(
             url,
             path.join(
                 (this.app.vault.adapter as FileSystemAdapter).getBasePath(),
                 dir
             ),
-            depth ? ["--depth", `${depth}`] : []
+            extraFlags
         );
 
         // Set required attributes like `absoluteRepoPath` and add the script to the exclude file if needed.

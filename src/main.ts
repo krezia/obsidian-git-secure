@@ -725,6 +725,17 @@ export default class ObsidianGit extends Plugin {
                     return;
                 }
             }
+            const cloneConfirm = await new GeneralModal(this, {
+                options: ["Cancel", "Clone"],
+                placeholder:
+                    "Only clone repositories you trust. Cloning from an unknown source can execute code on your machine. Continue?",
+                onlySelection: true,
+            }).openAndGetResult();
+            if (cloneConfirm !== "Clone") {
+                new Notice("Aborted clone");
+                return;
+            }
+
             new Notice(`Cloning new repo into "${dir}"`);
             const oldBase = this.settings.basePath;
             const customDir = dir && dir !== ".";
