@@ -898,16 +898,6 @@ export class ObsidianGitSettingsTab extends PluginSettingTab {
 
         if (plugin.gitManager instanceof SimpleGit)
             new Setting(containerEl)
-                .setName("Additional PATH environment variable paths")
-                .setDesc("Use each line for one path")
-                .addTextArea((cb) => {
-                    cb.setValue(plugin.localStorage.getPATHPaths().join("\n"));
-                    cb.onChange((value) => {
-                        plugin.localStorage.setPATHPaths(value.split("\n"));
-                    });
-                });
-        if (plugin.gitManager instanceof SimpleGit)
-            new Setting(containerEl)
                 .setName("Reload with new environment variables")
                 .setDesc(
                     "Removing previously added environment variables will not take effect until Obsidian is restarted."

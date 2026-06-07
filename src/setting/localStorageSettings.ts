@@ -31,6 +31,9 @@ export class LocalStorageSettings {
                 }
             }
         }
+        // Remove any stored PATHPaths entry (feature removed for security).
+        this.app.saveLocalStorage(this.prefix + "PATHPaths", null);
+        localStorage.removeItem(this.prefix + "PATHPaths");
     }
 
     getPassword(): string | null {
@@ -109,23 +112,6 @@ export class LocalStorageSettings {
 
     setGitPath(value: string): void {
         return this.app.saveLocalStorage(this.prefix + "gitPath", value);
-    }
-
-    getPATHPaths(): string[] {
-        return (
-            (
-                this.app.loadLocalStorage(this.prefix + "PATHPaths") as
-                    | string
-                    | null
-            )?.split(":") ?? []
-        );
-    }
-
-    setPATHPaths(value: string[]): void {
-        return this.app.saveLocalStorage(
-            this.prefix + "PATHPaths",
-            value.join(":")
-        );
     }
 
     getEnvVars(): string[] {

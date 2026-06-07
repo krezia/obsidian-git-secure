@@ -84,14 +84,9 @@ export class SimpleGit extends GitManager {
                     allowUnsafePager: true,
                 },
             });
-            const pathPaths = this.plugin.localStorage.getPATHPaths();
             const envVars = this.plugin.localStorage.getEnvVars();
             const gitDir = this.plugin.settings.gitDir;
             const envs = { ...process.env };
-            if (pathPaths.length > 0) {
-                const path = pathPaths.join(":") + ":" + envs["PATH"];
-                envs["PATH"] = path;
-            }
             if (gitDir) {
                 envs["GIT_DIR"] = gitDir;
                 envs["GIT_WORK_TREE"] = basePath;
