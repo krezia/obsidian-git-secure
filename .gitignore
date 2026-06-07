@@ -16,3 +16,6 @@ yarn.lock
 .vscode
 
 .DS_Store
+
+# my todo folder
+/TODO
