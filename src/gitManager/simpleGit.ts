@@ -1,5 +1,6 @@
 import debug from "debug";
 import * as fsPromises from "fs/promises";
+import { spawnSync } from "child_process";
 import type { FileSystemAdapter } from "obsidian";
 import { normalizePath, Notice, Platform } from "obsidian";
 import * as path from "path";
@@ -39,7 +40,32 @@ export class SimpleGit extends GitManager {
         super(plugin);
     }
 
+    /** Returns true iff `gitPath` is an absolute path to a valid git binary. */
+    async validateGitPath(gitPath: string): Promise<boolean> {
+        if (!path.isAbsolute(gitPath)) return false;
+        try {
+            await fsPromises.access(gitPath);
+        } catch {
+            return false;
+        }
+        const result = spawnSync(gitPath, ["--version"], { encoding: "utf8" });
+        return typeof result.stdout === "string" &&
+            result.stdout.startsWith("git version");
+    }
+
     async setGitInstance(ignoreError = false): Promise<void> {
+        // Validate custom binary path before using it.
+        const customGitPath = this.plugin.localStorage.getGitPath();
+        if (customGitPath) {
+            const valid = await this.validateGitPath(customGitPath);
+            if (!valid) {
+                new Notice(
+                    `ObsidianGit: Invalid git binary path "${customGitPath}". Reverting to system git.`
+                );
+                this.plugin.localStorage.setGitPath("");
+            }
+        }
+
         if (await this.isGitInstalled()) {
             const adapter = this.app.vault.adapter as FileSystemAdapter;
             const vaultBasePath = adapter.getBasePath();
@@ -782,12 +808,33 @@ export class SimpleGit extends GitManager {
         this.plugin.setPluginState({ gitAction: CurrentGitAction.push });
         try {
             if (this.plugin.settings.updateSubmodules) {
-                const res = await this.git.subModule([
-                    "foreach",
-                    "--recursive",
-                    `tracking=$(git for-each-ref --format='%(upstream:short)' "$(git symbolic-ref -q HEAD)"); echo $tracking; if [ ! -z "$(git diff --shortstat $tracking)" ]; then git push; fi`,
-                ]);
-                console.log(res);
+                // Use structured API calls per submodule instead of a raw shell
+                // template to avoid shell-injection via ref names.
+                const submoduleList = await this.git.subModule(["status", "--recursive"]);
+                const submodulePaths = submoduleList
+                    .split("\n")
+                    .filter((l) => l.trim().length > 0)
+                    .map((l) => l.trim().replace(/^[+\-U ]/, "").split(" ")[1]);
+                for (const subPath of submodulePaths) {
+                    if (!subPath) continue;
+                    const subGit = simpleGit(
+                        path.join(this.absoluteRepoPath, subPath)
+                    );
+                    try {
+                        const tracking = await subGit.revparse([
+                            "--abbrev-ref",
+                            "--symbolic-full-name",
+                            "@{u}",
+                        ]);
+                        const diff = await subGit.diff([
+                            "--shortstat",
+                            tracking.trim(),
+                        ]);
+                        if (diff.trim()) await subGit.push();
+                    } catch {
+                        // Submodule may not have a tracking branch — skip silently.
+                    }
+                }
             }
             const status = await this.git.status();
             const trackingBranch = status.tracking;

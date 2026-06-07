@@ -874,7 +874,21 @@ export class ObsidianGitSettingsTab extends PluginSettingTab {
                 .addText((cb) => {
                     cb.setValue(plugin.localStorage.getGitPath() ?? "");
                     cb.setPlaceholder("git");
-                    cb.onChange((value) => {
+                    cb.onChange(async (value) => {
+                        if (value) {
+                            const valid = await (
+                                plugin.gitManager as SimpleGit
+                            ).validateGitPath(value);
+                            if (!valid) {
+                                new Notice(
+                                    `ObsidianGit: "${value}" is not a valid git binary (must be an absolute path that responds to git --version). Path not saved.`
+                                );
+                                cb.setValue(
+                                    plugin.localStorage.getGitPath() ?? ""
+                                );
+                                return;
+                            }
+                        }
                         plugin.localStorage.setGitPath(value);
                         plugin.gitManager
                             .updateGitPath(value || "git")
