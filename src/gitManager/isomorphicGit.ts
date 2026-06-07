@@ -10,8 +10,23 @@ import type {
     WalkerMap,
 } from "isomorphic-git";
 import git, { Errors, readBlob } from "isomorphic-git";
-import { Notice, requestUrl } from "obsidian";
+import { Notice, Platform, requestUrl } from "obsidian";
 import type ObsidianGit from "../main";
+
+// Lazily resolved keytar — only available on desktop (Electron).
+let _keytar: typeof import("keytar") | null | undefined = undefined;
+function getKeytar(): typeof import("keytar") | null {
+    if (_keytar === undefined) {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            _keytar = require("keytar") as typeof import("keytar");
+        } catch {
+            _keytar = null;
+        }
+    }
+    return _keytar;
+}
+const KEYTAR_SERVICE = "obsidian-git";
 import type {
     BranchInfo,
     FileStatusResult,
@@ -70,7 +85,31 @@ export class IsomorphicGit extends GitManager {
             fs: this.fs,
             dir: this.plugin.settings.basePath,
             gitdir: this.plugin.settings.gitDir || undefined,
-            onAuth: () => {
+            onAuth: async (url: string) => {
+                if (Platform.isDesktopApp) {
+                    const keytar = getKeytar();
+                    if (keytar) {
+                        const password = await keytar.getPassword(
+                            KEYTAR_SERVICE,
+                            url
+                        );
+                        // Migrate a legacy credential stored under a generic key
+                        const legacy =
+                            password == null
+                                ? await keytar.getPassword(
+                                      KEYTAR_SERVICE,
+                                      "default"
+                                  )
+                                : null;
+                        return {
+                            username:
+                                this.plugin.localStorage.getUsername() ??
+                                undefined,
+                            password: (password ?? legacy) ?? undefined,
+                        };
+                    }
+                }
+                // Mobile: return session-scoped in-memory credentials.
                 return {
                     username:
                         this.plugin.localStorage.getUsername() ?? undefined,
@@ -78,7 +117,7 @@ export class IsomorphicGit extends GitManager {
                         this.plugin.localStorage.getPassword() ?? undefined,
                 };
             },
-            onAuthFailure: async () => {
+            onAuthFailure: async (url: string) => {
                 new Notice(
                     "Authentication failed. Please try with different credentials"
                 );
@@ -92,12 +131,22 @@ export class IsomorphicGit extends GitManager {
                         obscure: true,
                     }).openAndGetResult();
                     if (password) {
-                        this.plugin.localStorage.setUsername(username);
-                        this.plugin.localStorage.setPassword(password);
-                        return {
-                            username,
-                            password,
-                        };
+                        if (Platform.isDesktopApp) {
+                            const keytar = getKeytar();
+                            if (keytar) {
+                                await keytar.setPassword(
+                                    KEYTAR_SERVICE,
+                                    url,
+                                    password
+                                );
+                            }
+                            this.plugin.localStorage.setUsername(username);
+                        } else {
+                            // Mobile: hold in session memory only
+                            this.plugin.localStorage.setUsername(username);
+                            this.plugin.localStorage.setPassword(password);
+                        }
+                        return { username, password };
                     }
                 }
                 return { cancel: true };

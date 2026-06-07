@@ -785,16 +785,10 @@ export class ObsidianGitSettingsTab extends PluginSettingTab {
             new Setting(containerEl)
                 .setName("Password/Personal access token")
                 .setDesc(
-                    "Type in your password. You won't be able to see it again."
-                )
-                .addText((cb) => {
-                    cb.inputEl.autocapitalize = "off";
-                    cb.inputEl.autocomplete = "off";
-                    cb.inputEl.spellcheck = false;
-                    cb.onChange((value) => {
-                        plugin.localStorage.setPassword(value);
-                    });
-                });
+                    Platform.isDesktopApp
+                        ? "Stored securely in the OS keychain. You will be prompted on first use."
+                        : "Held in memory for this session only. You will be prompted on first push/pull."
+                );
 
         if (plugin.gitReady)
             new Setting(containerEl)

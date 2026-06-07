@@ -494,10 +494,12 @@ export default class ObsidianGit extends Plugin {
             await this.saveSettings();
         }
         if (this.settings.username != undefined) {
-            this.localStorage.setPassword(this.settings.username);
+            // Previously this field held a password; discard it — it will be
+            // captured via the OS keychain on the next auth prompt.
             this.settings.username = undefined;
             await this.saveSettings();
         }
+        await this.localStorage.migrateCredentialsToKeychain();
     }
 
     unloadPlugin() {
@@ -521,6 +523,7 @@ export default class ObsidianGit extends Plugin {
     }
 
     onunload() {
+        this.localStorage.clearSessionCredentials();
         this.unloadPlugin();
 
         console.log("unloading " + this.manifest.name + " plugin");

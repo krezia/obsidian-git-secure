@@ -20,6 +20,7 @@ const context = await esbuild.context({
     external: [
         "obsidian",
         "electron",
+        "keytar",
         "child_process",
         "fs",
         "os",

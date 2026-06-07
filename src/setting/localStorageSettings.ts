@@ -1,5 +1,11 @@
+import { Platform } from "obsidian";
 import type { App } from "obsidian";
 import type ObsidianGit from "../main";
+
+// Session-scoped credentials for mobile — never written to localStorage
+let _mobilePassword: string | null = null;
+let _mobileUsername: string | null = null;
+
 export class LocalStorageSettings {
     private prefix: string;
     private app: App;
@@ -31,26 +37,78 @@ export class LocalStorageSettings {
                 }
             }
         }
+        // Stash any existing plaintext password under a temp key so the async
+        // migrateCredentialsToKeychain() can move it to the OS keychain, then
+        // wipe it from the normal storage slot right away.
+        const existingPassword = this.app.loadLocalStorage(
+            this.prefix + "password"
+        ) as string | null;
+        if (existingPassword != null && Platform.isDesktopApp) {
+            this.app.saveLocalStorage(
+                this.prefix + "legacyPassword",
+                existingPassword
+            );
+        }
+        this.app.saveLocalStorage(this.prefix + "password", null);
+        localStorage.removeItem(this.prefix + "PATHPaths");
+    }
+
+    /** Moves any legacy plaintext password from localStorage to the OS keychain (desktop only). */
+    async migrateCredentialsToKeychain(): Promise<void> {
+        if (!Platform.isDesktopApp) return;
+        const legacy = this.app.loadLocalStorage(
+            this.prefix + "legacyPassword"
+        ) as string | null;
+        if (!legacy) return;
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const keytar = require("keytar") as typeof import("keytar");
+            await keytar.setPassword("obsidian-git", "default", legacy);
+        } catch {
+            // keytar unavailable — credential will be prompted on next auth
+        }
+        this.app.saveLocalStorage(this.prefix + "legacyPassword", null);
     }
 
     getPassword(): string | null {
-        return this.app.loadLocalStorage(this.prefix + "password") as
-            | string
-            | null;
+        if (!Platform.isDesktopApp) {
+            return _mobilePassword;
+        }
+        // Desktop: password is managed via the OS keychain in isomorphicGit.ts.
+        // Return null here; callers that need the raw value use the keychain directly.
+        return null;
     }
 
     setPassword(value: string): void {
-        return this.app.saveLocalStorage(this.prefix + "password", value);
+        if (!Platform.isDesktopApp) {
+            _mobilePassword = value;
+            // Never persist to localStorage on mobile
+            return;
+        }
+        // Desktop: password is stored in OS keychain — do not write to localStorage.
     }
 
     getUsername(): string | null {
+        if (!Platform.isDesktopApp) {
+            return _mobileUsername;
+        }
         return this.app.loadLocalStorage(this.prefix + "username") as
             | string
             | null;
     }
 
     setUsername(value: string): void {
+        if (!Platform.isDesktopApp) {
+            _mobileUsername = value;
+            return;
+        }
         return this.app.saveLocalStorage(this.prefix + "username", value);
+    }
+
+    /** Clears session-scoped in-memory credentials (mobile). */
+    clearSessionCredentials(): void {
+        _mobilePassword = null;
+        _mobileUsername = null;
     }
 
     getHostname(): string | null {
