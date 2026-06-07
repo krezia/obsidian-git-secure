@@ -1,3 +1,4 @@
 allowBuilds:
   esbuild: true
+  keytar: false
   svelte-preprocess: true
